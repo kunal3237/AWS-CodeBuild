@@ -110,7 +110,7 @@ kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ tree                         
 kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ cat buildspec.yaml 
 version: 0.2
 
-phases:                                                                                  ###Mandatory. With install/pre_build/build/pot_build
+phases:                                                                                  ###Mandatory. With install/pre_build/build/post_build
   install:
     runtime-versions:
       java: corretto11
@@ -265,3 +265,5 @@ kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$
 ##################################################################################
 DELETE THE LOG GROUP AS THOSE ARE NOT DELETED WITH STACK DELETION
 
+BUILD jobs are normally run by some triggers. We have to configure the trigers to run the build jobs based on provided condtion. In this example I ran the build job manually.
+These triggers varies based on source.
