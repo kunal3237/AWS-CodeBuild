@@ -1,0 +1,209 @@
+#####################CodeBuild is a CI (Continous integration) build tool avaialble in AWS. It is used to build  and test the software
+CodeBuild compiles your source code, runs unit tests, and produces artifacts that are ready to deploy. CodeBuild eliminates the need to provision, manage, and scale your own build servers.
+
+Main Components of the CodeBuild
+
+1) Build Project :
+It defines the build environment, source of the code and artifacts for uploading the package
+
+Build Project defining the environment.CodeBuild offers EC2 and AWS Lambda compute modes.
+EC2 offers optimized flexibility during your build and AWS Lambda offers optimized start-up speeds. AWS Lambda supports faster builds due to a lower start-up latency
+With the EC2 compute mode, you can run your builds with on-demand or reserved capacity fleets
+
+Example:
+Snippet showing Build Environement###################################However It contains other info like source, environment and artifacts
+"environment": {
+    "type": "LINUX_CONTAINER",
+    "image": "aws/codebuild/standard:5.0",
+    "computeType": "BUILD_GENERAL1_SMALL"                                                                  ######Compute resources
+A build environment represents a combination of operating system, programming language runtime, and tools that CodeBuild uses to run a build.
+
+In Build Project we define the OS as well as the Compute to prepare the environment to runt the build jobs
+###########################################################################################################
+computeType---Information about the compute resources the build project uses 
+Example 
+BUILD_GENERAL1_SMALL: Use up to 4 GiB memory and 2 vCPUs for builds
+BUILD_LAMBDA_2GB: Use up to 2 GiB memory for builds. Only available for environment type LINUX_LAMBDA_CONTAINER and ARM_LAMBDA_CONTAINER.
+
+type--- The type of build environment to use for related builds.
+Example:
+LINUX_LAMBDA_CONTAINER | ARM_LAMBDA_CONTAINER | LINUX_EC2 
+###########################################################################################################
+2) buildspec.yaml file. -- This file contains the build instructions  like install/pre_build/build/post_build (Name should be exactly same, you can't change the name of these phases). 
+PLease note that this is default name. codebuild is expecting in the root directory. If any change in name do mention the name
+
+Check the BuildSpec reference to see which are required settings which are needed in the buildspec.yaml file
+
+https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html#build-spec-ref-syntax
+Phases is one of the required field.
+
+##########################################Example of creating a Build Project with CloudFormation ########################
+AWSTemplateFormatVersion: 2010-09-09
+Description: To check CodeBuild with cloudformation:DescribeStackResource
+
+Resources:
+  buildproject:
+    Type: AWS::CodeBuild::Project                                                          ####in Build Project, Artifacts, Environement,Source and ServiceRole are mandatory
+    Properties:
+      Artifacts:
+        Type: S3
+        Location: kunalcodebuildtargets3                                                ####Defining the Artfacts
+
+        # Name: "/"
+      Source:
+        Type: S3  
+        Location: kunalcodebuildsources3/MessageUtil.zip                                #####Defining the source location
+
+      Environment:                                                                      ###Defining the environment 
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Type: "LINUX_CONTAINER"
+        Image: "aws/codebuild/standard:5.0"
+      ServiceRole: !GetAtt Myrole.Arn                                                ####Servide Role to be used by CodeBuild
+
+
+  Myrole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: myrole
+      AssumeRolePolicyDocument:                                                     ####AssumeRole with Resource 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com                                    ####CodeBuild Will Assume this Roles
+            Action: sts:AssumeRole
+      Policies:
+          - PolicyName: mypolicy                                                  
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Sid: CodeBuildprivs                                                ####Privs assigne to this Role
+                  Effect: Allow
+                  Action: [
+                              "logs:CreateLogGroup",
+                              "logs:CreateLogStream",
+                              "logs:PutLogEvents",
+                              "codecommit:GitPull",
+                              "s3:GetObject",
+                              "s3:GetObjectVersion",
+                              "s3:PutObject",
+                              "s3:GetBucketAcl",
+                              "s3:GetBucketLocation"
+                            ]
+                    
+                  Resource: '*'
+
+
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ tree                                                    ####This Code and files are taken from the aws example for codebuild
+.
+├── buildspec.yaml
+├── MessageUtil.zip
+├── pom.xml
+├── src
+│   ├── main
+│   │   └── java
+│   │       └── MessageUtil.java
+│   └── test
+│       └── java
+│           └── TestMessageUtil.java
+
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ cat buildspec.yaml 
+version: 0.2
+
+phases:                                                                                  ###Mandatory. With install/pre_build/build/pot_build
+  install:
+    runtime-versions:
+      java: corretto11
+  pre_build:
+    commands:
+      - echo Nothing to do in the pre_build phase...
+  build:
+    commands:
+      - echo Build started on `date`
+      - mvn install
+  post_build:
+    commands:
+      - echo Build completed on `date`
+artifacts:
+  files:
+    - target/messageUtil-1.0.jar
+
+###########################################################################
+
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 mb s3://kunalcodebuildtargets3 --profile sharma --region ap-south-1 
+make_bucket: kunalcodebuildtargets3
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 mb s3://kunalcodebuildsources3 --profile sharma --region ap-south-1 
+make_bucket: kunalcodebuildsources3
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 cp MessageUtil.zip s3://kunalcodebuildsources3 --profile sharma
+upload: ./MessageUtil.zip to s3://kunalcodebuildsources3/MessageUtil.zip
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 ls --profile sharma
+2025-02-03 18:27:07 kunalcodebuildsources3
+2025-02-03 18:26:58 kunalcodebuildtargets3
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 ls s3://kunalcodebuildsources3 --profile sharma
+2025-02-03 18:27:21       2380 MessageUtil.zip
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws cloudformation create-stack --stack-name myfirststack1 --template-body file://user5.yaml --region ap-south-1  --profile sharma --capabilities CAPABILITY_NAMED_IAM
+{
+    "StackId": "arn:aws:cloudformation:ap-south-1:*****************:stack/myfirststack1/1bebfc60-e231-11ef-8c39-0a6ff3698ca1"
+}
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws codebuild list-projects --sort-by NAME --sort-order ASCENDING --profile sharma --region ap-south-1
+{
+    "projects": []
+}
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws codebuild list-projects --sort-by NAME --sort-order ASCENDING --profile sharma --region ap-south-1
+{
+    "projects": [
+        "buildproject-pozigVy3A2kp"
+    ]
+}
+
+
+#########################Manually running the CodeBuild#######################################Normally these Build are run with some triggers. But I am running here manually
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws codebuild start-build --project-name "buildproject-pozigVy3A2kp" --queued-timeout-in-minutes-override 5 --profile sharma -
+-region ap-south-1
+{
+    "build": {
+        "id": "buildproject-pozigVy3A2kp:e3c8c568-93f9-4f50-b833-59a34585115d",
+        "arn": "arn:aws:codebuild:ap-south-1:*****************:build/buildproject-pozigVy3A2kp:e3c8c568-93f9-4f50-b833-59a34585115d",
+        "buildNumber": 1,
+        "startTime": "2025-02-03T18:47:53.570000+05:30",
+        "currentPhase": "QUEUED",
+        "buildStatus": "IN_PROGRESS",
+        "projectName": "buildproject-pozigVy3A2kp",
+        "phases": [
+            {
+                "phaseType": "SUBMITTED",
+                "phaseStatus": "SUCCEEDED",
+                "startTime": "2025-02-03T18:47:53.570000+05:30",
+                "endTime": "2025-02-03T18:47:53.638000+05:30",
+                "durationInSeconds": 0
+            },
+
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws codebuild list-projects --sort-by NAME --sort-order ASCENDING --profile sharma --region ap-south-1
+{
+    "projects": [
+        "buildproject-pozigVy3A2kp"
+    ]
+}
+
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws codebuild batch-get-builds --ids "buildproject-pozigVy3A2kp:e3c8c568-93f9-4f50-b833-59a34585115d" --profile sharma --region ap-south-1 --query builds[*].buildStatus
+[
+    "SUCCEEDED"
+]
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws codebuild batch-get-builds --ids "buildproject-pozigVy3A2kp:e3c8c568-93f9-4f50-b833-59a34585115d" --profile sharma --region ap-south-1 --query builds[*].phases[*].phaseStatus
+[
+    [
+        "SUCCEEDED",
+        "SUCCEEDED",
+        "SUCCEEDED",
+        "SUCCEEDED",
+        "SUCCEEDED",
+        "SUCCEEDED",
+        "SUCCEEDED",
+        "SUCCEEDED",
+        "SUCCEEDED",
+        "SUCCEEDED"
+    ]
+]
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ 
+
+
