@@ -263,3 +263,5 @@ kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 rb s3://kunalcodebuild
 remove_bucket: kunalcodebuildsources3
 kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ 
 ##################################################################################
+DELETE THE LOG GROUP AS THOSE ARE NOT DELETED WITH STACK DELETION
+
