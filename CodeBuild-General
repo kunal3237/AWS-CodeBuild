@@ -206,4 +206,42 @@ kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws codebuild batch-get-build
 ]
 kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ 
 
+#####################################Log Group Created by this Build##########################
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws logs describe-log-groups --profile sharma --region ap-south-1
+{
+    "logGroups": [
+        {
+            "logGroupName": "/aws/codebuild/buildproject-52MUWVK6A3S3",
+            "creationTime": 1738588119265,
+            "metricFilterCount": 0,
+            "arn": "arn:aws:logs:ap-south-1:************************:log-group:/aws/codebuild/buildproject-52MUWVK6A3S3:*",
+            "storedBytes": 0,
+            "logGroupClass": "STANDARD",
+            "logGroupArn": "arn:aws:logs:ap-south-1:************************:log-group:/aws/codebuild/buildproject-52MUWVK6A3S3"
+        },
+        {
+            "logGroupName": "/aws/codebuild/buildproject-pozigVy3A2kp",
+            "creationTime": 1738588674226,
+            "metricFilterCount": 0,
+            "arn": "arn:aws:logs:ap-south-1:************************:log-group:/aws/codebuild/buildproject-pozigVy3A2kp:*",
+            "storedBytes": 0,
+            "logGroupClass": "STANDARD",
+            "logGroupArn": "arn:aws:logs:ap-south-1:************************:log-group:/aws/codebuild/buildproject-pozigVy3A2kp"
+        }
+    ]
+}
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ 
 
+####################################LOg Stream create inside Log Group########################
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws logs describe-log-streams --log-group-name "/aws/codebuild/buildproject-52MUWVK6A3S3" --profile sharma --region ap-south-1
+{
+    "logStreams": [
+        {
+            "logStreamName": "9491e49e-586c-4d40-b497-4a0cd8f0e940",
+            "creationTime": 1738588119293,
+            "arn": "arn:aws:logs:ap-south-1:************************:log-group:/aws/codebuild/buildproject-52MUWVK6A3S3:log-stream:9491e49e-586c-4d40-b497-4a0cd8f0e940",
+            "storedBytes": 0
+        }
+    ]
+}
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ 
