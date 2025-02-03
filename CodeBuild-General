@@ -245,3 +245,21 @@ kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws logs describe-log-streams
     ]
 }
 kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ 
+
+###################################Removing the Buckets####################################
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 ls --profile sharma
+2025-02-03 18:27:07 kunalcodebuildsources3
+2025-02-03 18:26:58 kunalcodebuildtargets3
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 rm s3://kunalcodebuildsources3 --profile sharma --region ap-south-1 --recursive
+delete: s3://kunalcodebuildsources3/MessageUtil.zip
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 rm s3://kunalcodebuildtargets3 --profile sharma --region ap-south-1 --recursive
+delete: s3://kunalcodebuildtargets3/buildproject-pozigVy3A2kp/target/messageUtil-1.0.jar
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 ls --profile sharma
+2025-02-03 18:27:07 kunalcodebuildsources3
+2025-02-03 18:26:58 kunalcodebuildtargets3
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 rb s3://kunalcodebuildtargets3 --profile sharma --region ap-south-1
+remove_bucket: kunalcodebuildtargets3
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws s3 rb s3://kunalcodebuildsources3 --profile sharma --region ap-south-1
+remove_bucket: kunalcodebuildsources3
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ 
+##################################################################################
