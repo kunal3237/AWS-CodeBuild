@@ -1,0 +1,158 @@
+#######################Here I am testing other available instaruction to be used in buildspec##############
+version: 0.2
+env:
+  shell: bash
+  variables:
+    mycode: "myfirsrtcodebuild"
+       
+phases:
+  pre_build:
+
+    on-failure:  RETRY-2                                        ####Retry-2 option is used here, So build will try twice this phase and then fail
+    commands:
+      - eho "this is pre_build stage $mycode"                      ##Wrong Command Intentaionally to see the behaviour
+      
+    finally:
+      - echo "Passed pre_build"
+  
+    
+  build:
+    
+    on-failure: ABORT 
+    commands:
+      - echo " I am in build phase"
+      
+    finally:
+      - echo "passed build phase"
+          
+  post_build:
+   
+    commands:
+      - echo "in post_build phase"
+      
+    finally:
+      - echo "Passed post_build:"
+artifacts:
+  files:
+      - target/messageUtil-1.0.jar    
+      
+    
+########################################Logs of build with On-failure RETY-2##################
+[Container] 2025/02/04 06:40:07.399416 Retrying PRE_BUILD phase execution (attempt 1 of 2)
+[Container] 2025/02/04 06:40:07.399694 Running command eho "this is pre_build stage ${mycode}"
+/codebuild/output/tmp/script.sh: line 4: eho: command not found
+
+[Container] 2025/02/04 06:40:07.405161 Command did not exit successfully eho "this is pre_build stage ${mycode}" exit status 127
+[Container] 2025/02/04 06:40:07.407490 Running command echo "Passed pre_build, ${mycode}"
+Passed pre_build, myfirsrtcodebuild
+
+[Container] 2025/02/04 06:40:07.413958 Retrying PRE_BUILD phase execution (attempt 2 of 2)                                              ##Tried twice,Anf the failed
+[Container] 2025/02/04 06:40:07.414205 Running command eho "this is pre_build stage ${mycode}"
+/codebuild/output/tmp/script.sh: line 4: eho: command not found
+
+[Container] 2025/02/04 06:40:07.420114 Command did not exit successfully eho "this is pre_build stage ${mycode}" exit status 127
+[Container] 2025/02/04 06:40:07.422160 Running command echo "Passed pre_build, ${mycode}"
+Passed pre_build, myfirsrtcodebuild
+
+[Container] 2025/02/04 06:40:07.428334 Phase complete: PRE_BUILD State: FAILED
+[Container] 2025/02/04 06:40:07.428346 Phase context status code: COMMAND_EXECUTION_ERROR Message: Error while executing command: eho "this is pre_build stage ${mycode}". Reason: exit status 127
+
+###############################################################################
+NOw Changed the on-failure to continue##############
+phases:
+  pre_build:
+
+    on-failure:  CONTINUE                                                    ###Here Continue is used, So It will contiuw to other phases even this phase fails
+    commands:
+      - eho "this is pre_build stage ${mycode}"
+      
+    finally:
+      - echo "Passed pre_build, ${mycode}"
+
+####################################################
+[Container] 2025/02/04 06:42:18.994931 Phase complete: PRE_BUILD State: FAILED_WITH_CONTINUE
+[Container] 2025/02/04 06:42:18.994954 Phase context status code: COMMAND_EXECUTION_ERROR Message: Error while executing command: eho "this is pre_build stage ${mycode}". Reason: exit status 127
+[Container] 2025/02/04 06:42:19.029726 Entering phase BUILD
+[Container] 2025/02/04 06:42:19.031099 Running command echo " I am in build phase"
+ I am in build phase
+
+[Container] 2025/02/04 06:42:19.038398 Running command echo "passed build phase"
+passed build phase
+
+[Container] 2025/02/04 06:42:19.045375 Phase complete: BUILD State: SUCCEEDED        
+[Container] 2025/02/04 06:42:19.045391 Phase context status code:  Message: 
+[Container] 2025/02/04 06:42:19.077832 Entering phase POST_BUILD
+[Container] 2025/02/04 06:42:19.079027 Running command echo "in post_build phase"
+in post_build phase
+
+[Container] 2025/02/04 06:42:19.086027 Running command echo "Passed post_build:"
+Passed post_build:
+
+[Container] 2025/02/04 06:42:19.092174 Phase complete: POST_BUILD State: SUCCEEDED                                        ###Moved to other phase
+[Container] 2025/02/04 06:42:19.092190 Phase context status code:  Message: 
+[Container] 2025/02/04 06:42:19.170582 Expanding base directory path: .
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+Using Environment Variables in the buildspec###########
+version: 0.2
+env:
+  shell: bash
+  variables:                                                             ###defining the Variable
+    mycode: "myfirsrtcodebuild"
+       
+phases:
+  pre_build:
+    commands:
+      - echo " $(echo $SHELL)"
+      - echo "this is pre_build stage ${mycode}"                          ###Using in pre_build
+      
+    finally:
+      - echo "Passed pre_build, ${mycode}"
+  
+    
+ build:
+    
+    on-failure: ABORT 
+    commands:
+      - echo " I am in build phase ${mycode}"                            ###Using in Build Phase
+      
+    finally:
+      - echo "passed build phase"
+          
+  post_build:
+   
+    commands:
+      - echo "in post_build phase"
+      
+    finally:
+      - echo "Passed post_build:"
+artifacts:
+  files:
+      - target/messageUtil-1.0.jar    
+
+#################Build Logs:
+[Container] 2025/02/04 07:58:47.294701 Entering phase PRE_BUILD
+[Container] 2025/02/04 07:58:47.324727 Running command echo " $(echo $SHELL)"
+ /bin/bash
+
+[Container] 2025/02/04 07:58:47.445997 Running command echo "this is pre_build stage ${mycode}"    
+this is pre_build stage myfirsrtcodebuild                                                                      #####Pre_build Phase Variable
+
+[Container] 2025/02/04 07:58:47.452431 Running command echo "Passed pre_build, ${mycode}"
+Passed pre_build, myfirsrtcodebuild
+
+[Container] 2025/02/04 07:58:47.458577 Phase complete: PRE_BUILD State: SUCCEEDED
+[Container] 2025/02/04 07:58:47.458591 Phase context status code:  Message: 
+[Container] 2025/02/04 07:58:47.491448 Entering phase BUILD
+[Container] 2025/02/04 07:58:47.492632 Running command echo " I am in build phase ${mycode}"
+ I am in build phase myfirsrtcodebuild                                                                    #####Build Phase Variable
+
+[Container] 2025/02/04 07:58:47.499874 Running command echo "passed build phase"
+passed build phase
+
+[Container] 2025/02/04 07:58:47.506141 Phase complete: BUILD State: SUCCEEDED
+[Container] 2025/02/04 07:58:47.506154 Phase context status code:  Message: 
+[Container] 2025/02/04 07:58:47.550796 Entering phase POST_BUILD
+[Container] 2025/02/04 07:58:47.552441 Running command echo "in post_build phase"
+    
+#######################################################
