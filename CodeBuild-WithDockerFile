@@ -1,5 +1,5 @@
 ##################Here I am tesing scenario where I want to create docker image from the build project and want to put that in the docker hub
-Source I am also using GUTHUB 
+Source I am also using GITHUB 
 ##################################CloudFormation for creating the resource ##########################################
 Resources:
   mycodebuildproject:
