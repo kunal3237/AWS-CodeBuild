@@ -1,0 +1,111 @@
+##################Here I am tesing scenario where I want to create docker image from the build project and want to put that in the docker hub
+Source I am also using GUTHUB 
+##################################CloudFormation for creating the resource ##########################################
+Resources:
+  mycodebuildproject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts: 
+        Type: NO_ARTIFACTS                                                      #####As I would be placing the docker image on docker hub, So I am using NO_ARTIFACTS
+
+      
+      Environment: 
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux-x86_64-standard:5.0
+        Type: LINUX_CONTAINER
+      
+      Name: mycodebuildwithdocker
+      
+      ServiceRole: !Ref Myrole
+      Source: 
+        Type: GITHUB                                                                #####Source is also used GITHUB, In this repository I have place buildspec,DockerFile and othe file sthat I want to be in the docker image
+        Location: https://github.com/kunal3237/CodeForPractice.git
+
+  Myrole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: myrole
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+          - PolicyName: mypolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Sid: CodeBuildprivs
+                  Effect: Allow
+                  Action: [
+                              "logs:CreateLogGroup",
+                              "logs:CreateLogStream",
+                              "logs:PutLogEvents",
+                              "codecommit:GitPull",
+                              "s3:GetObject",
+                              "s3:GetObjectVersion",
+                              "s3:PutObject",
+                              "s3:GetBucketAcl",
+                              "s3:GetBucketLocation",
+                              "s3:ListBucket",
+                              "codebuild:CreateReportGroup",
+                              "codebuild:CreateReport"
+                            ]
+                    
+                  Resource: '*'
+
+################################################
+
+BuildSpec File
+
+##################################################
+
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - git clone https://github.com/kunal3237/CodeForPractice.git              #####IN Pre_build phase I am cloning the repo ans also loggin in to docker. Please don't use the cred directly in the code. I was just testin, Will use secret manager in nect examples
+      - docker login -u "*************" -p "***************"
+
+    
+  build:
+    
+    commands:
+      - docker build -t kunal3237/myfirstcodebuild .                                  ######Docker Build Command
+      - docker push kunal3237/myfirstcodebuild                                         ####Docker Push command as part of build
+      - echo "With Dockerfile"
+    
+  post_build:
+    
+    commands:
+      - echo "Post_build also completed"
+
+artifacts:                                                                              ####Artifacts to be used, It would be dockerhun in this case
+  files:
+    - '**/*'   
+
+
+########################################Logs from the codebuild######################
+[Container] 2025/02/05 06:14:37.833160 Phase context status code:  Message: 
+[Container] 2025/02/05 06:14:37.864155 Entering phase POST_BUILD
+[Container] 2025/02/05 06:14:37.865381 Running command echo "Post_build also completed"
+Post_build also completed
+
+[Container] 2025/02/05 06:14:37.872803 Phase complete: POST_BUILD State: SUCCEEDED
+[Container] 2025/02/05 06:14:37.872815 Phase context status code:  Message: 
+[Container] 2025/02/05 06:14:37.953211 Set report auto-discover timeout to 5 seconds
+[Container] 2025/02/05 06:14:37.953249 Expanding base directory path:  .
+[Container] 2025/02/05 06:14:37.956664 Assembling file list
+[Container] 2025/02/05 06:14:37.956677 Expanding .
+[Container] 2025/02/05 06:14:37.959812 Expanding file paths for base directory .
+[Container] 2025/02/05 06:14:37.959826 Assembling file list
+[Container] 2025/02/05 06:14:37.959830 Expanding **/*
+[Container] 2025/02/05 06:14:37.963624 No matching auto-discover report paths found
+[Container] 2025/02/05 06:14:37.963679 Report auto-discover file discovery took 0.010468 seconds
+[Container] 2025/02/05 06:14:37.963712 Phase complete: UPLOAD_ARTIFACTS State: SUCCEEDED
+[Container] 2025/02/05 06:14:37.963719 Phase context status code:  Message: 
+
+#####################################################################
