@@ -1,0 +1,130 @@
+################Test case to use the GITHUB cred and trigger the build job Automatically ,
+To run build  job, there are multiple options available in codebuild. In previos exapmles I have run the build manully
+In this example I am setting a trigger in GITHUB so that It will run the job automatically whenever there is a push in the repository.
+
+##################################################################
+CloudFormation File with trigger
+
+Resources:
+  mycodebuildproject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts: 
+        Type: NO_ARTIFACTS
+
+      
+      Environment: 
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux-x86_64-standard:5.0
+        Type: LINUX_CONTAINER
+      
+      Name: mycodebuildwithdocker
+      
+      ServiceRole: !Ref Myrole
+      Source: 
+        Type: GITHUB
+        Location: https://github.com/kunal3237/CodeForPractice.git
+        Auth:
+          Resource: !Ref mycred                                          ####Deining the Auth method to GITHUB, I have already set a webhhok in the GITHUB for cloud build, so now it needs authentication to connect to GITHUB
+          Type: OAUTH
+
+      Triggers:                                                           ####Defining Trigger with some events 
+          BuildType: BUILD
+          FilterGroups: 
+          - - Type: EVENT
+              Pattern: PULL_REQUEST_CREATED,PULL_REQUEST_UPDATED,PUSH
+          Webhook: true                                                  ###Webhook
+  
+  mycred:
+      Type: AWS::CodeBuild::SourceCredential                            #####Defining the Cred with PAT of the GITHUB
+      Properties:
+        AuthType: PERSONAL_ACCESS_TOKEN
+        ServerType: GITHUB
+        Token: ********************* 
+        Username: ***********
+
+  Myrole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: myrole
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+          - PolicyName: mypolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Sid: CodeBuildprivs
+                  Effect: Allow
+                  Action: [
+                              "logs:CreateLogGroup",
+                              "logs:CreateLogStream",
+                              "logs:PutLogEvents",
+                              "codecommit:GitPull",
+                              "s3:GetObject",
+                              "s3:GetObjectVersion",
+                              "s3:PutObject",
+                              "s3:GetBucketAcl",
+                              "s3:GetBucketLocation",
+                              "s3:ListBucket",
+                              "codebuild:CreateReportGroup",
+                              "codebuild:CreateReport",
+                              "codebuild:StartBuild"
+                            ]
+                    
+                  Resource: '*'
+
+#####################################
+BuildSpec File
+######################################
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - git clone https://github.com/kunal3237/CodeForPractice.git
+      - docker login -u "*************" -p "*****************"                                  #####Docker credentials, I used direct credentials here as I don't want to spend money. But this is recommend approach to use cred directly
+    
+  build:
+    
+    commands:
+      - docker build -t kunal3237/myfirstcodebuild .
+      - docker push kunal3237/myfirstcodebuild 
+      - echo "With Dockerfile"
+    
+  post_build:
+    
+    commands:
+      - echo "Post_build also completed"
+
+artifacts:
+  files:
+    - '**/*'   
+
+############################################
+The moment I am making changes in the repository in any file, An event is being triggered which automatically starting the build job because of the trigger configured.
+
+###################################################
+
+[Container] 2025/02/05 08:41:05.978844 Running command echo "Post_build also completed"
+Post_build also completed
+
+[Container] 2025/02/05 08:41:05.988653 Phase complete: POST_BUILD State: SUCCEEDED
+[Container] 2025/02/05 08:41:05.988665 Phase context status code:  Message: 
+[Container] 2025/02/05 08:41:06.081446 Set report auto-discover timeout to 5 seconds
+[Container] 2025/02/05 08:41:06.081507 Expanding base directory path:  .
+[Container] 2025/02/05 08:41:06.085080 Assembling file list
+[Container] 2025/02/05 08:41:06.085095 Expanding .
+[Container] 2025/02/05 08:41:06.088471 Expanding file paths for base directory .
+[Container] 2025/02/05 08:41:06.088485 Assembling file list
+[Container] 2025/02/05 08:41:06.088523 Expanding **/*
+[Container] 2025/02/05 08:41:06.092712 No matching auto-discover report paths found
+[Container] 2025/02/05 08:41:06.092824 Report auto-discover file discovery took 0.011377 seconds
+[Container] 2025/02/05 08:41:06.092874 Phase complete: UPLOAD_ARTIFACTS State: SUCCEEDED
+[Container] 2025/02/05 08:41:06.092883 Phase context status code:  Message: 
+#####################################################
