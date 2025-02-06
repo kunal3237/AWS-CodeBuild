@@ -10,7 +10,9 @@ Build fanout
 Note : AS we are using the Batch option of the codebuild, Please make sure required privs are granted to use the codebuild batch option.
 
 ###########################################################################
-Build-list Option ######################
+Build-list Option ###################### 
+You might need to run your builds with various configurations, like different operating systems, programming languages, or dependency versions. 
+With batch-list, you'd have to manually define each combination.
 
 CloudFormationTemplate to use Batch option
 #############################################
@@ -172,7 +174,7 @@ batch:
       
       env:
          variables:
-           BUILD_ID: build2                                                                    ### This ran with default enviroment that we set in the code build Project
+           BUILD_ID: build2                                                                    ### This ran with default enviroment that we set in the code build Project.With batch-list, you'd have to manually define each combination
            source: "https://github.com/kunal3237/JavacodeforPractice3.git"
            target: "kunalcodebuildtargets3/build2/"
     #dynamic:
@@ -188,3 +190,6 @@ phases:
       - ls
 
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+The number of containers is directly tied to the number of builds you've defined, not the number of phases within each build.  T
+he phases all happen within the container dedicated to that specific build.
