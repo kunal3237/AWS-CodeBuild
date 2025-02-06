@@ -1,0 +1,151 @@
+###############Here i'll show how to use batch option of the codebuild works.
+AWS CodeBuild provide concurrent and coordinated builds of a project with batch builds.
+
+CodeBuild supports the following batch build types:
+Build graph
+Build list
+Build matrix
+Build fanout
+
+Note : AS we are using the Batch option of the codebuild, Please make sure required privs are granted to use the codebuild batch option.
+
+###########################################################################
+Build-list Option ######################
+
+CloudFormationTemplate to use Batch option
+#############################################
+AWSTemplateFormatVersion: 2010-09-09
+Description: To check CodeBuild with cloudformation:DescribeStackResource
+
+Resources:
+  buildproject:
+    Type: AWS::CodeBuild::Project                                                #Defining Build-Project
+    Properties:
+      Artifacts:
+        Type: S3
+        Location: kunalcodebuildtargets3
+
+
+
+      Source:
+        Type: GITHUB
+        Location: https://github.com/kunal3237/JavacodeforPractice2.git
+
+
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Type: "LINUX_CONTAINER"
+        Image: "aws/codebuild/standard:5.0"
+      ServiceRole: !GetAtt Myrole.Arn  
+      BuildBatchConfig:                                                         ####This is required if you wan to use Batch option Else , You won't see parallel jobs runing   
+        ServiceRole: !GetAtt Myrole.Arn                                          #####Role required to run the Batch jobs
+
+  Myrole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: myrole
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+          - PolicyName: mypolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Sid: CodeBuildprivs
+                  Effect: Allow
+                  Action: [
+                              "logs:CreateLogGroup",
+                              "logs:CreateLogStream",
+                              "logs:PutLogEvents",
+                              "codecommit:GitPull",
+                              "s3:GetObject",
+                              "s3:GetObjectVersion",
+                              "s3:PutObject",
+                              "s3:GetBucketAcl",
+                              "s3:GetBucketLocation",
+                              "s3:ListBucket",
+                              "codebuild:CreateReportGroup",
+                              "codebuild:CreateReport",
+                              "codebuild:StartBuild",                                ######Privs required to run the Barch jobs
+                              "codebuild:StopBuild",
+                              "codebuild:StartBuildBatch",
+                              "codebuild:StopBuildBatch",
+                              "codebuild:BatchGet*"
+                            ]
+                    
+                  Resource: '*'
+
+######################################################
+BuildSpec.yaml
+version: 0.2
+
+batch:                                                                          ####Buildspec file mentioning the parallelism
+  fast-fail: false
+  build-list:
+    - identifier: build1                                                      ## This Build will run with build2.yml buildspec, What ever defined in the build2.yml file
+      buildspec: build2.yml
+      
+      env:
+        variables:
+          BUILD_ID: build1
+          source: "https://github.com/kunal3237/JavacodeforPractice3.git"
+          target: "kunalcodebuildtargets3/build2/"
+       
+    - identifier: build2                                                    #### THis Build wll run with default buildspecfile.
+      
+      env:
+         variables:
+           BUILD_ID: build2
+           source: "https://github.com/kunal3237/JavacodeforPractice3.git"
+           target: "kunalcodebuildtargets3/build2/"
+    #dynamic:
+     # buildspec: 
+      #  - build2.yml
+    
+
+phases:                                                                    #####These Will be executed as a part of default buildspec
+  
+  post_build:
+    commands:
+      - echo Both Build completed on `date` ${BUILD_ID}
+      - ls
+
+################################################
+build2.yml file ################
+
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      java: corretto11
+  pre_build:
+    commands:
+      - echo ${source}
+      - git clone ${source}
+      - echo "THis is from Build1"
+      
+  build:
+    commands:
+      - echo Build started on `date`
+      - ls
+      - pwd
+      - mvn install
+      - echo "Building from build1"
+  post_build:
+    commands:
+      - echo Build1 completed on `date`
+artifacts:
+  files:
+    - target/messageUtil-1.0.jar
+
+####################################################################IMportant##################
+Please make sure your buildspec.yaml,build2.yml src1 folder all exist in source directory, else you will see errors.
+Also, note that based on the build you provide in the list. Codebuild will create that many containers
+
+#########################################################################################
+    
