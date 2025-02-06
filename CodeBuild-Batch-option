@@ -193,3 +193,76 @@ $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 The number of containers is directly tied to the number of builds you've defined, not the number of phases within each build.  T
 he phases all happen within the container dedicated to that specific build.
+
+#####################################
+Build-matrix ####################
+A build matrix defines tasks with different configurations that run in parallel. CodeBuild creates a separate build for each possible configuration combination.
+##########################
+buildspec.yaml
+
+version: 0.2
+
+batch:
+  fast-fail: false
+  build-matrix:                                                                    #####Defining Build-matrix with dynamic section                                                                                              
+
+    dynamic:
+     buildspec:                                                                    #### Two buildspec
+       - build2.yml
+       - buildspec.yaml
+     env:  
+       variables:                                                                  ####Variable Defined  ,Build  build2_source and buildspec_source ran
+         source:                                                         
+           - "https://github.com/kunal3237/JavacodeforPractice3.git"
+         
+
+phases:
+  
+  post_build:
+    commands:
+      - echo Both Build completed on `date` ${BUILD_ID}
+      - ls
+      - git clone ${source}
+
+####################################################################
+Build-graph ########################### 
+A build graph defines a set of tasks that have dependencies on other tasks in the batch.
+#############################################################
+buildspec.yaml
+
+
+version: 0.2
+
+batch:
+  fast-fail: false
+  build-graph:
+    - identifier: build1
+      buildspec: build2.yml
+      
+      env:
+        variables:
+          BUILD_ID: build1
+          source: "https://github.com/kunal3237/JavacodeforPractice3.git"
+          target: "kunalcodebuildtargets3/build2/"
+        compute-type: BUILD_LAMBDA_1GB
+        type: ARM_LAMBDA_CONTAINER
+        image: aws/codebuild/amazonlinux-aarch64-lambda-standard:corretto21
+      depend-on:                                                                   #####It depends upon build2, So build2 will complete first then this will be executed
+        - build2
+    - identifier: build2
+      
+      env:
+         variables:
+           BUILD_ID: build2
+           source: "https://github.com/kunal3237/JavacodeforPractice3.git"
+           target: "kunalcodebuildtargets3/build2/"
+
+phases:
+  
+  post_build:
+    commands:
+      - echo Both Build completed on `date` ${BUILD_ID}
+      - ls
+      - git clone ${source}
+
+##############################
