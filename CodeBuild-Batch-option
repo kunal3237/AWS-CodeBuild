@@ -149,3 +149,42 @@ Also, note that based on the build you provide in the list. Codebuild will creat
 
 #########################################################################################
     
+Now made changes in the buidspec file:
+
+version: 0.2
+
+batch:
+  fast-fail: false
+  build-list:
+    - identifier: build1
+      buildspec: build2.yml
+      
+      env:
+        variables:
+          BUILD_ID: build1
+          source: "https://github.com/kunal3237/JavacodeforPractice3.git"
+          target: "kunalcodebuildtargets3/build2/"
+        compute-type: BUILD_LAMBDA_1GB                                                            ####Build 1 is set to used different environment, This build ran with 1GB lambda container
+        type: ARM_LAMBDA_CONTAINER
+        image: aws/codebuild/amazonlinux-aarch64-lambda-standard:corretto21
+        
+    - identifier: build2
+      
+      env:
+         variables:
+           BUILD_ID: build2                                                                    ### This ran with default enviroment that we set in the code build Project
+           source: "https://github.com/kunal3237/JavacodeforPractice3.git"
+           target: "kunalcodebuildtargets3/build2/"
+    #dynamic:
+     # buildspec: 
+      #  - build2.yml
+    
+
+phases:
+  
+  post_build:
+    commands:
+      - echo Both Build completed on `date` ${BUILD_ID}
+      - ls
+
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
