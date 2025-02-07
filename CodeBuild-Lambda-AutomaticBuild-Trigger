@@ -1,0 +1,239 @@
+######Here I'll show how to configure the lambda trigger to start the codebuild build automAatically. 
+Some AWs services have integration with lambda function to work with lambda function. Services send events to 
+lambda service, where lamdba function perform the designated task. 
+
+Please check the Event structure of the service which you want to work with Lambda. Here I would be using S3 event.
+S3 generate events based on the activity performed on dessignated bucket like object create,object delete etc.
+Details about the structure of the event generated can be found in the doc.
+For S3 : https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html
+Some service have their direct integration with lambda. However AWS also provided option to confure the event using EvenBridge. If using EventBridge , Please check the event structure from EventBridge service
+You can get the examples in EventBridge Service.
+
+I would be using the direct Integration. I mean not from EventBridge.
+
+###########################################################################################
+CloudFormation code to create aome resources, Like CodeBuildProject, S3, roles, lambda etc
+##############################################################################
+AWSTemplateFormatVersion: 2010-09-09
+Description: To check CodeBuild with cloudformation:DescribeStackResource
+
+Resources:
+  buildproject:
+    DependsOn: mys3 
+    Type: AWS::CodeBuild::Project                                                                              ###CodeBuild Project
+    Properties:
+      Name: myproject
+      
+      Artifacts:
+        Type: S3
+        Location: kunalcodebuildtargets3
+
+
+
+      Source:
+        Type: S3
+        Location: kunalcodebuildsources3/MessageUtil.zip
+
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Type: "LINUX_CONTAINER"
+        Image: "aws/codebuild/standard:5.0"
+      ServiceRole: !GetAtt Myrole.Arn  
+      # BuildBatchConfig:
+      #   ServiceRole: !GetAtt Myrole.Arn
+
+  Myrole:
+    Type: AWS::IAM::Role                                                                                        ###Role to be used by CodeBuild with required Privs
+    Properties:
+      RoleName: myrole
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+          - PolicyName: mypolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Sid: CodeBuildprivs
+                  Effect: Allow
+                  Action: [
+                              "logs:CreateLogGroup",
+                              "logs:CreateLogStream",
+                              "logs:PutLogEvents",
+                              "codecommit:GitPull",
+                              "s3:GetObject",
+                              "s3:GetObjectVersion",
+                              "s3:PutObject",
+                              "s3:GetBucketAcl",
+                              "s3:GetBucketLocation",
+                              "s3:ListBucket",
+                              "codebuild:CreateReportGroup",
+                              "codebuild:CreateReport",
+                              "codebuild:StartBuild",
+                              "codebuild:StopBuild",
+                              "codebuild:StartBuildBatch",
+                              "codebuild:StopBuildBatch",
+                              "codebuild:BatchGet*"
+                            ]
+                    
+                  Resource: '*'
+  mys3:
+    Type: AWS::S3::Bucket                                                                                  ####Source Bucket, where I'll create a event to trigger the lambda function.
+    DependsOn: myfunction
+    Properties:
+  
+      BucketName: kunalcodebuildsources3
+      NotificationConfiguration: 
+        LambdaConfigurations:                                                                           ####S3 NOtification to Lambda configured
+          - Event: "s3:ObjectCreated:Put"
+            Function: !GetAtt myfunction.Arn
+
+  # mys3target:
+  #   Type: AWS::S3::Bucket
+  #   Properties:
+  
+  #     BucketName: kunalcodebuildtargets3
+      
+  myfunction:
+    Type: AWS::Lambda::Function                                                                        ######Lambda function with Python code to handle the S3 Object creation event
+    #DependsOn: mys3target
+    Properties:
+      FunctionName: myfunction
+      Runtime: python3.12
+      Handler: index.lambda_handler                                                                    #### Handler is index here so make sure you python code is written index.py file. If different then change the name
+      Code:
+            S3Bucket: kunalcodebuildtargets3                                                          #####Lambda Code Location
+            S3Key: mylambda.zip
+      Role: !GetAtt myfuncrole.Arn
+  
+  myfuncrole:                                                                                          ##### Lambda Function need role to perform the action Like Start the build in CodeBuild Service and should have acces to S3.  
+    Type: AWS::IAM::Role                                                                                #### PLease limit the privs as per you requirement. I used "*" which is not recommened
+    Properties:
+      RoleName: myfuncrole
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - lambda.amazonaws.com                                                                    #####Lambda to assume this role
+                - s3.amazonaws.com 
+            Action: sts:AssumeRole
+      Policies:
+          - PolicyName: mypolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Sid: lambdaprivs
+                  Effect: Allow
+                  Action: [
+                              "logs:CreateLogGroup",
+                              "logs:CreateLogStream",
+                              "logs:PutLogEvents",
+                              "codecommit:GitPull",
+                              "s3:GetObject",
+                              "s3:GetObjectVersion",
+                              "s3:PutObject",
+                              "s3:GetBucketAcl",
+                              "s3:GetBucketLocation",
+                              "s3:ListBucket",
+                              "codebuild:CreateReportGroup",
+                              "codebuild:CreateReport",
+                              "codebuild:StartBuild",
+                              "codebuild:StopBuild",
+                              "codebuild:StartBuildBatch",
+                              "codebuild:StopBuildBatch",
+                              "codebuild:BatchGet*"
+                            ]
+                    
+  
+                  Resource: '*'
+  lambdapermission:  
+    
+    Type: AWS::Lambda::Permission                                                                                #### Permission required to invoke the lambda function by S3
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref myfunction
+      Principal: s3.amazonaws.com                                                                                #### S3 service to use this
+      SourceArn: !Sub "arn:aws:s3:::kunalcodebuildsources3"            
+
+
+#########################################################################
+Python code to start the CodeBuild Build run
+################################################
+import boto3
+
+import json
+import urllib.parse
+
+def lambda_handler(event, context):
+    bucket = event['Records'][0]['s3']['bucket']['name']
+    key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
+    action_on_bucket=event['Records'][0]["eventName"]
+
+    if action_on_bucket=="ObjectCreated:Put":
+        client = boto3.client('codebuild')
+        response = client.start_build(projectName='myproject')
+        status_check=response["build"]['buildStatus']
+        return status_check
+    
+########################################################
+Bundle this python code inde.py with required packages.
+Install all the required package in som directory and then zip the index.py with that
+pip install -r requirement.txt -t .
+zip -r mylambda.zip .
+
+Also create a package for code for which you run the event and the build job
+I am using MessageUtil.zip. It contains source code , buildspec.yaml file and pom.xml
+
+##################################################################
+
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1/kunal$ aws s3 ls --profile sharma --region ap-south-1
+2025-02-07 12:18:41 kunalcodebuildtargets3
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1/kunal$ aws s3 cp mylambda.zip  s3://kunalcodebuildtargets3 --profile sharma --region ap-south-1
+upload: ./mylambda.zip to s3://kunalcodebuildtargets3/mylambda.zip 
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1/kunal$ cd ../
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ aws cloudformation create-stack --stack-name myfirststack1 --template-body file://user7.yaml --region ap-south-1  --profile sharma --capabilities CAPABILITY_NAMED_IAM
+{
+    "StackId": "arn:aws:cloudformation:ap-south-1:**********************:stack/myfirststack1/ab181c90-e53b-11ef-8208-06b56388a83d"
+}
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1$ cd kunal/
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1/kunal$ aws s3 cp MessageUtil.zip s3://kunalcodebuildsources3 --profile sharma --region ap-south-1
+upload: ./MessageUtil.zip to s3://kunalcodebuildsources3/MessageUtil.zip
+
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1/kunal$ aws codebuild list-builds --sort-order ASCENDING --profile sharma --region ap-south-1
+{
+    "ids": [
+        "myproject:1fe2021b-55e9-46c4-8c6b-fb661b525fb3"
+    ]
+}
+
+###########################################################################################################################
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1/kunal$ aws logs describe-log-groups  --profile sharma --region ap-south-1
+{
+    "logGroups": [
+        {
+            "logGroupName": "/aws/codebuild/myproject",
+            "creationTime": 1738923151592,
+            "metricFilterCount": 0,
+            "arn": "arn:aws:logs:ap-south-1:**********************:log-group:/aws/codebuild/myproject:*",
+            "storedBytes": 0,
+            "logGroupClass": "STANDARD",
+            "logGroupArn": "arn:aws:logs:ap-south-1:**********************:log-group:/aws/codebuild/myproject"
+        },
+        {
+            "logGroupName": "/aws/lambda/myfunction",
+            "creationTime": 1738923150466,
+            "metricFilterCount": 0,
+            "arn": "arn:aws:logs:ap-south-1:**********************:log-group:/aws/lambda/myfunction:*",
+            "storedBytes": 0,
+            "logGroupClass": "STANDARD",
+            "logGroupArn": "arn:aws:logs:ap-south-1:**********************:log-group:/aws/lambda/myfunction"
+        }
+    ]
+}
+kunal@kunal-Lenovo-U410:~/cloudFormation/chapter1/kunal$ 
